@@ -1,0 +1,676 @@
+!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Centro Histórico Bogotá</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+        
+        #map {
+            flex: 1;
+            width: 100%;
+        }
+        
+        .legend {
+            position: absolute;
+            top: 120px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            z-index: 1000;
+            min-width: 280px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .legend h3 {
+            color: #2c3e50;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            font-size: 14px;
+            font-weight: 500;
+            color: #34495e;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 12px;
+            border: 3px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        
+        .legend-perimeter {
+            width: 20px;
+            height: 4px;
+            margin-right: 12px;
+            background: #a0d0e4;
+            border: 1px solid #7bb3d3;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 120px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .control-btn {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            border: none;
+            padding: 12px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            min-width: 160px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .control-btn:hover {
+            background: #3498db;
+            color: white;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+        
+        .control-btn.active {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .popup-content {
+            font-family: 'Segoe UI', sans-serif;
+            max-width: 280px;
+        }
+        
+        .popup-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+        }
+        
+        .popup-info {
+            margin: 8px 0;
+            color: #555;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .popup-type {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: inline-block;
+            margin-top: 8px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        .leaflet-popup-content-wrapper {
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        
+        .custom-marker {
+            transition: all 0.3s ease;
+        }
+        
+        .custom-marker:hover {
+            transform: scale(1.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏛️ Centro Histórico de Bogotá</h1>
+            <p>Descubre museos, universidades, teatros, iglesias y sitios emblemáticos de La Candelaria</p>
+        </div>
+        
+        <div id="map"></div>
+        
+        <div class="legend">
+            <h3>📍 Sitios de Interés</h3>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(45deg, #ff6b6b, #ee5a52);"></div>
+                <span>🏛️ Museos</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(45deg, #4ecdc4, #44a08d);"></div>
+                <span>🎭 Teatros & Cultura</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(45deg, #45b7d1, #3498db);"></div>
+                <span>🎓 Universidades</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(45deg, #96ceb4, #85bb65);"></div>
+                <span>⛪ Sitios Religiosos</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(45deg, #ffeaa7, #fdcb6e);"></div>
+                <span>🌳 Parques & Plazas</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(45deg, #dda0dd, #ba68c8);"></div>
+                <span>🚌 Transporte</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-perimeter"></div>
+                <span>📏 Perímetro (5 cuadras)</span>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="control-btn" onclick="verTodos()">🔍 Ver Todos</button>
+            <button class="control-btn" onclick="filtrarCategoria('museo')">🏛️ Museos</button>
+            <button class="control-btn" onclick="filtrarCategoria('universidad')">🎓 Universidades</button>
+            <button class="control-btn" onclick="filtrarCategoria('teatro')">🎭 Teatros</button>
+            <button class="control-btn" onclick="filtrarCategoria('iglesia')">⛪ Iglesias</button>
+            <button class="control-btn" onclick="filtrarCategoria('parque')">🌳 Parques</button>
+            <button class="control-btn" onclick="filtrarCategoria('transporte')">🚌 Transporte</button>
+            <button class="control-btn" onclick="togglePerimetro()">📏 Perímetro</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script>
+        // Coordenadas exactas del centro histórico de Bogotá
+        const centroHistorico = [4.5981, -74.0758];
+        
+        // Inicializar mapa
+        const map = L.map('map').setView(centroHistorico, 15);
+        
+        // Capa base con estilo mejorado
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap | Centro Histórico Bogotá',
+            maxZoom: 20,
+            minZoom: 13
+        }).addTo(map);
+        
+        // Datos del perímetro del GeoJSON
+        const perimetroCoords = [
+            [-74.07107974064596,4.608510287288681],
+            [-74.07155703729299,4.6084869148567975],
+            [-74.07202973721904,4.608417022655029],
+            [-74.0724932879756,4.608301283797066],
+            [-74.07294322523275,4.60814081293343],
+            [-74.07337521577621,4.607937155515932],
+            [-74.07378509924142,4.607692272912992],
+            [-74.07416892818232,4.6074085235191875],
+            [-74.07452300608922,4.6070886400410425],
+            [-74.07484392298916,4.606735703177851],
+            [-74.0751285882862,4.606353111951066],
+            [-74.07537426052521,4.605944550968076],
+            [-74.07557857379247,4.605513954935703],
+            [-74.0757395604991,4.605065470765243],
+            [-74.07585567032766,4.604603417634053],
+            [-74.07592578515973,4.604132245388373],
+            [-74.07594922984092,4.6036564916880325],
+            [-74.07592577867945,4.603180738305787],
+            [-74.07585565761616,4.60270956700217],
+            [-74.07573954204486,4.602247515400806],
+            [-74.0755785503047,4.601799033289147],
+            [-74.07537423290648,4.601368439765429],
+            [-74.07512855759794,4.600959881644544],
+            [-74.07484389041068,4.6005772935233225],
+            [-74.07452297287249,4.60022435988981],
+            [-74.07416889560382,4.599904479641345],
+            [-74.07378506855315,4.599620733353104],
+            [-74.07337518815748,4.599375853612269],
+            [-74.07294320174496,4.599172198703427],
+            [-74.07249326952137,4.599011729898591],
+            [-74.07202972450753,4.598895992570454],
+            [-74.07155703081273,4.598826101310749],
+            [-74.07107974064596,4.5988027291969615],
+            [-74.07060245047917,4.598826101310749],
+            [-74.07012975678437,4.598895992570454],
+            [-74.06966621177054,4.599011729898591],
+            [-74.06921627954694,4.599172198703427],
+            [-74.06878429313441,4.599375853612269],
+            [-74.06837441273875,4.599620733353104],
+            [-74.06799058568808,4.599904479641345],
+            [-74.06763650841943,4.60022435988981],
+            [-74.06731559088122,4.6005772935233225],
+            [-74.06703092369396,4.600959881644544],
+            [-74.06678524838541,4.601368439765429],
+            [-74.0665809309872,4.601799033289147],
+            [-74.06641993924704,4.602247515400806],
+            [-74.06630382367575,4.60270956700217],
+            [-74.06623370261245,4.603180738305787],
+            [-74.06621025145098,4.6036564916880325],
+            [-74.06623369613217,4.604132245388373],
+            [-74.06630381096424,4.604603417634053],
+            [-74.0664199207928,4.605065470765243],
+            [-74.06658090749943,4.605513954935703],
+            [-74.0667852207667,4.605944550968076],
+            [-74.0670308930057,4.606353111951066],
+            [-74.06731555830274,4.606735703177851],
+            [-74.06763647520268,4.6070886400410425],
+            [-74.06799055310958,4.6074085235191875],
+            [-74.0683743820505,4.607692272912992],
+            [-74.06878426551569,4.607937155515932],
+            [-74.06921625605915,4.60814081293343],
+            [-74.0696661933163,4.608301283797066],
+            [-74.07012974407286,4.608417022655029],
+            [-74.07060244399891,4.6084869148567975],
+            [-74.07107974064596,4.608510287288681]
+        ];
+        
+        // Convertir coordenadas para Leaflet (lat, lng en lugar de lng, lat)
+        const perimetroLatLng = perimetroCoords.map(coord => [coord[1], coord[0]]);
+        
+        // Crear polígono del perímetro
+        let perimetroPolygon = L.polygon(perimetroLatLng, {
+            color: '#a0d0e4',
+            weight: 2,
+            opacity: 1,
+            fillColor: '#bee0ee',
+            fillOpacity: 0.5
+        });
+        
+        // Agregar popup al perímetro
+        perimetroPolygon.bindPopup(`
+            <div class="popup-content">
+                <div class="popup-title">Perímetro Centro Histórico</div>
+                <div class="popup-info"><strong>📏 Radio:</strong> 5 cuadras</div>
+                <div class="popup-info"><strong>ℹ️ Descripción:</strong> Área delimitada del centro histórico de Bogotá</div>
+                <div class="popup-type">perímetro</div>
+            </div>
+        `);
+        
+        // Variable para controlar visibilidad del perímetro
+        let perimetroVisible = true;
+        
+        // Datos de puntos de interés con coordenadas verificadas
+        const puntosInteres = [
+            // MUSEOS
+            {
+                nombre: "Museo del Oro",
+                tipo: "museo",
+                coordenadas: [4.6019, -74.0722],
+                direccion: "Carrera 6 # 15-88",
+                descripcion: "El museo de oro más importante de Colombia, ubicado en el Parque Santander",
+                color: "#ff6b6b"
+            },
+            {
+                nombre: "Museo Masónico Colombiano",
+                tipo: "museo", 
+                coordenadas: [4.6037, -74.0711],
+                direccion: "Carrera 5 # 17-79",
+                descripcion: "Museo dedicado a la historia de la masonería en Colombia",
+                color: "#ff6b6b"
+            },
+            {
+                nombre: "Casa de Poesía Silva",
+                tipo: "museo",
+                coordenadas: [4.5987, -74.0706],
+                direccion: "Calle 12c # 3-41",
+                descripcion: "Casa museo del poeta José Asunción Silva",
+                color: "#ff6b6b"
+            },
+            {
+                nombre: "Museo de la Esmeralda",
+                tipo: "museo",
+                coordenadas: [4.6022, -74.0719],
+                direccion: "Carrera 5 # 16-46",
+                descripcion: "Museo dedicado a las esmeraldas colombianas",
+                color: "#ff6b6b"
+            },
+            
+            // UNIVERSIDADES
+            {
+                nombre: "Universidad del Rosario",
+                tipo: "universidad",
+                coordenadas: [4.6000, -74.0734],
+                direccion: "Carrera 7 # 12b-41",
+                descripcion: "Una de las universidades más prestigiosas de Colombia",
+                color: "#45b7d1"
+            },
+            {
+                nombre: "Universidad La Gran Colombia",
+                tipo: "universidad",
+                coordenadas: [4.5996, -74.0727],
+                direccion: "Carrera 6 # 12B-40",
+                descripcion: "Universidad privada fundada en 1951",
+                color: "#45b7d1"
+            },
+            {
+                nombre: "Universidad Tadeo Lozano",
+                tipo: "universidad",
+                coordenadas: [4.6068, -74.0678],
+                direccion: "Carrera 4 # 22-61",
+                descripcion: "Universidad privada con sede en La Candelaria",
+                color: "#45b7d1"
+            },
+            {
+                nombre: "Universidad Central",
+                tipo: "universidad",
+                coordenadas: [4.6062, -74.0694],
+                direccion: "Carrera 5 # 21-38",
+                descripcion: "Universidad privada en el centro histórico",
+                color: "#45b7d1"
+            },
+            
+            // TEATROS Y CULTURA
+            {
+                nombre: "Teatro Faenza",
+                tipo: "teatro",
+                coordenadas: [4.6075, -74.0694],
+                direccion: "Carrera 5 # 22-37",
+                descripcion: "Teatro emblemático del centro de Bogotá",
+                color: "#4ecdc4"
+            },
+            {
+                nombre: "Teatro México",
+                tipo: "teatro",
+                coordenadas: [4.6072, -74.0700],
+                direccion: "Carrera 7 # 22-47",
+                descripcion: "Teatro histórico en el centro de la ciudad",
+                color: "#4ecdc4"
+            },
+            {
+                nombre: "Cinemateca Distrital",
+                tipo: "teatro",
+                coordenadas: [4.6031, -74.0677],
+                direccion: "Carrera 3 # 19-10",
+                descripcion: "Centro de exhibición cinematográfica de Bogotá",
+                color: "#4ecdc4"
+            },
+            
+            // IGLESIAS
+            {
+                nombre: "Iglesia Las Nieves",
+                tipo: "iglesia",
+                coordenadas: [4.6061, -74.0709],
+                direccion: "Carrera 7 entre Calle 20 y 21",
+                descripcion: "Iglesia colonial en el barrio Las Nieves",
+                color: "#96ceb4"
+            },
+            {
+                nombre: "Iglesia de San Francisco",
+                tipo: "iglesia",
+                coordenadas: [4.6020, -74.0732],
+                direccion: "Carrera 7 # 8-62",
+                descripcion: "Una de las iglesias más antiguas de Bogotá",
+                color: "#96ceb4"
+            },
+            
+            // PARQUES Y PLAZAS
+            {
+                nombre: "Parque Santander",
+                tipo: "parque",
+                coordenadas: [4.6020, -74.0726],
+                direccion: "Carrera 7 con Calle 16",
+                descripcion: "Parque central frente al Museo del Oro",
+                color: "#ffeaa7"
+            },
+            {
+                nombre: "Plazoleta Las Nieves",
+                tipo: "parque",
+                coordenadas: [4.6064, -74.0715],
+                direccion: "Carrera 7 con Calle 20",
+                descripcion: "Plazoleta tradicional del barrio Las Nieves",
+                color: "#ffeaa7"
+            },
+            {
+                nombre: "Parque de los Periodistas",
+                tipo: "parque",
+                coordenadas: [4.6013, -74.0696],
+                direccion: "Carrera 4 con Calle 16",
+                descripcion: "Parque dedicado a los periodistas colombianos",
+                color: "#ffeaa7"
+            },
+            {
+                nombre: "Plazoleta de las Aguas",
+                tipo: "parque",
+                coordenadas: [4.6018, -74.0685],
+                direccion: "Calle 19 con Carrera 3",
+                descripcion: "Plazoleta histórica en Las Aguas",
+                color: "#ffeaa7"
+            },
+            
+            // TRANSPORTE
+            {
+                nombre: "Estación Las Nieves",
+                tipo: "transporte",
+                coordenadas: [4.6040, -74.0698],
+                direccion: "Carrera 7 con Calle 15",
+                descripcion: "Estación de TransMilenio",
+                color: "#dda0dd"
+            },
+            {
+                nombre: "Estación Museo del Oro",
+                tipo: "transporte",
+                coordenadas: [4.6011, -74.0729],
+                direccion: "Cerca Carrera 7 # 16",
+                descripcion: "Estación de TransMilenio",
+                color: "#dda0dd"
+            },
+            {
+                nombre: "Estación Las Aguas",
+                tipo: "transporte",
+                coordenadas: [4.6026, -74.0685],
+                direccion: "Calle 19 con Carrera 3",
+                descripcion: "Estación de TransMilenio en Las Aguas",
+                color: "#dda0dd"
+            }
+        ];
+        
+        // Variables para control de capas
+        let marcadores = [];
+        let categoriaActiva = 'todos';
+        
+        // Función para crear marcador personalizado
+        function crearMarcador(punto) {
+            const emoji = {
+                'museo': '🏛️',
+                'universidad': '🎓', 
+                'teatro': '🎭',
+                'iglesia': '⛪',
+                'parque': '🌳',
+                'transporte': '🚌'
+            };
+            
+            const icono = L.divIcon({
+                html: `<div style="
+                    background: linear-gradient(45deg, ${punto.color}, ${punto.color}dd);
+                    width: 30px;
+                    height: 30px;
+                    border-radius: 50%;
+                    border: 3px solid white;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 16px;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                " class="custom-marker">
+                    ${emoji[punto.tipo] || '📍'}
+                </div>`,
+                className: '',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+            
+            const marcador = L.marker(punto.coordenadas, { icon: icono });
+            
+            const popup = `
+                <div class="popup-content">
+                    <div class="popup-title">${punto.nombre}</div>
+                    <div class="popup-info"><strong>📍 Dirección:</strong> ${punto.direccion}</div>
+                    <div class="popup-info"><strong>ℹ️ Descripción:</strong> ${punto.descripcion}</div>
+                    <div class="popup-type">${punto.tipo}</div>
+                </div>
+            `;
+            
+            marcador.bindPopup(popup);
+            return { marcador, tipo: punto.tipo };
+        }
+        
+        // Crear todos los marcadores
+        function crearMarcadores() {
+            marcadores = [];
+            puntosInteres.forEach(punto => {
+                const { marcador, tipo } = crearMarcador(punto);
+                marcadores.push({ marcador, tipo });
+                marcador.addTo(map);
+            });
+        }
+        
+        // Función para alternar perímetro
+        function togglePerimetro() {
+            const btn = event.target;
+            
+            if (perimetroVisible) {
+                map.removeLayer(perimetroPolygon);
+                btn.style.background = 'rgba(255, 255, 255, 0.95)';
+                btn.style.color = '#2c3e50';
+                perimetroVisible = false;
+            } else {
+                perimetroPolygon.addTo(map);
+                btn.style.background = '#e74c3c';
+                btn.style.color = 'white';
+                perimetroVisible = true;
+                
+                // Ajustar vista al perímetro
+                map.fitBounds(perimetroPolygon.getBounds(), { padding: [30, 30] });
+            }
+        }
+        
+        // Filtrar por categoría
+        function filtrarCategoria(categoria) {
+            // Limpiar marcadores existentes
+            marcadores.forEach(item => {
+                map.removeLayer(item.marcador);
+            });
+            
+            // Actualizar botones
+            document.querySelectorAll('.control-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Mostrar marcadores filtrados
+            marcadores.forEach(item => {
+                if (categoria === 'todos' || item.tipo === categoria) {
+                    item.marcador.addTo(map);
+                }
+            });
+            
+            categoriaActiva = categoria;
+        }
+        
+        // Ver todos los marcadores
+        function verTodos() {
+            marcadores.forEach(item => {
+                item.marcador.addTo(map);
+            });
+            
+            document.querySelectorAll('.control-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            categoriaActiva = 'todos';
+            
+            // Ajustar vista para mostrar todos los puntos
+            const grupo = new L.featureGroup(marcadores.map(item => item.marcador));
+            map.fitBounds(grupo.getBounds(), { padding: [30, 30] });
+        }
+        
+        // Inicializar mapa
+        function inicializar() {
+            // Agregar perímetro al mapa
+            perimetroPolygon.addTo(map);
+            
+            // Crear marcadores
+            crearMarcadores();
+            
+            // Ajustar vista inicial
+            setTimeout(() => {
+                const grupo = new L.featureGroup(marcadores.map(item => item.marcador));
+                map.fitBounds(grupo.getBounds(), { padding: [50, 50] });
+            }, 500);
+        }
+        
+        // Efectos adicionales
+        map.on('zoomend', function() {
+            const zoom = map.getZoom();
+            const escala = Math.min(Math.max(zoom / 15, 0.8), 1.5);
+            
+            document.querySelectorAll('.custom-marker').forEach(marker => {
+                marker.style.transform = `scale(${escala})`;
+            });
+        });
+        
+        // Inicializar cuando cargue la página
+        inicializar();
+    </script>
+</body>
+</html>
